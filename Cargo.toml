@@ -1,0 +1,36 @@
+[package]
+name = "mcp-git-tools"
+version = "0.1.0"
+edition = "2024"
+description = "Git tools implementation for the Model Context Protocol"
+license = "MIT"
+
+[dependencies]
+# MCP dependencies 
+mcp-core = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "b24e912543d6e79bcc759be6db6a76416deef66b" }
+mcp-server = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "b24e912543d6e79bcc759be6db6a76416deef66b" }
+mcp-macros = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "b24e912543d6e79bcc759be6db6a76416deef66b" }
+
+# Async runtime
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "time"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+schemars = "0.8"
+
+# Error handling
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[[bin]]
+name = "mcp-git-server"
+path = "src/bin/server.rs"
+
+[lib]
+name = "mcp_git_tools"
+path = "src/lib.rs" 
