@@ -11,6 +11,7 @@ Git 工具集成库，用于 Model Context Protocol (MCP)。
 - `git_status` - 获取仓库状态
 - `git_branches` - 列出分支信息
 - `git_log` - 获取提交历史
+- `git_time_filtered_log` - 获取指定时间范围内的提交
 - `git_commit` - 创建新提交
 - `git_pull` - 从远程拉取更改
 - `git_push` - 推送更改到远程
@@ -148,6 +149,37 @@ let server = builder.build();
       "message": "Initial commit"
     }
   ]
+}
+```
+
+### git_time_filtered_log
+
+获取指定时间范围内的提交，可选择按作者和分支进行过滤。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+- `since` - 开始日期（例如："2023-01-01"、"1 week ago"、"yesterday"）
+- `until` - (可选) 结束日期（例如："2023-01-31"、"today"）
+- `author` - (可选) 按特定作者过滤
+- `branch` - (可选) 分支名称
+
+**返回：**
+```json
+{
+  "commits": [
+    {
+      "hash": "abcd1234",
+      "author": "User Name",
+      "date": "Mon Aug 1 10:00:00 2023 +0800",
+      "message": "Initial commit"
+    }
+  ],
+  "filters": {
+    "since": "1 week ago",
+    "until": "today",
+    "author": "User Name",
+    "branch": "main"
+  }
 }
 ```
 

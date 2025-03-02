@@ -159,6 +159,7 @@ pub fn register_git_tools(builder: &mut McpServerBuilder) -> &mut McpServerBuild
     builder.add_tool(Arc::new(tools::GitPullTool));
     builder.add_tool(Arc::new(tools::GitPushTool));
     builder.add_tool(Arc::new(tools::GitDiffTool));
+    builder.add_tool(Arc::new(tools::GitTimeFilteredLogTool));
     builder
 }
 
@@ -172,5 +173,6 @@ pub fn get_all_git_tools() -> Vec<Arc<dyn ToolHandler>> {
         Arc::new(tools::GitPullTool),
         Arc::new(tools::GitPushTool),
         Arc::new(tools::GitDiffTool),
+        Arc::new(tools::GitTimeFilteredLogTool),
     ]
 }

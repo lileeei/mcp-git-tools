@@ -11,6 +11,7 @@ This library provides a set of Git operations that can be called through the Mod
 - `git_status` - Get the status of a repository
 - `git_branches` - List branch information
 - `git_log` - Get commit history
+- `git_time_filtered_log` - Get commits within a specific time range
 - `git_commit` - Create a new commit
 - `git_pull` - Pull changes from remote
 - `git_push` - Push changes to remote
@@ -148,6 +149,37 @@ Get commit history.
       "message": "Initial commit"
     }
   ]
+}
+```
+
+### git_time_filtered_log
+
+Get commits within a specified time range, optionally filtered by author and branch.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+- `since` - Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
+- `until` - (optional) End date (e.g., "2023-01-31", "today")
+- `author` - (optional) Filter by specific author
+- `branch` - (optional) Branch name
+
+**Returns:**
+```json
+{
+  "commits": [
+    {
+      "hash": "abcd1234",
+      "author": "User Name",
+      "date": "Mon Aug 1 10:00:00 2023 +0800",
+      "message": "Initial commit"
+    }
+  ],
+  "filters": {
+    "since": "1 week ago",
+    "until": "today",
+    "author": "User Name",
+    "branch": "main"
+  }
 }
 ```
 

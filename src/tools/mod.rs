@@ -7,6 +7,7 @@ pub mod log;
 pub mod pull;
 pub mod push;
 pub mod status;
+pub mod time_filtered_log;
 
 // Re-export all tools to make them publicly accessible
 pub use status::GitStatusTool;
@@ -16,6 +17,7 @@ pub use commit::GitCommitTool;
 pub use pull::GitPullTool;
 pub use push::GitPushTool;
 pub use diff::GitDiffTool;
+pub use time_filtered_log::GitTimeFilteredLogTool;
 
 use mcp_core::handler::ToolError;
 use std::process::Command;
