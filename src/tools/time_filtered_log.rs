@@ -7,17 +7,17 @@ use serde_json::{Value, json};
 pub struct GitTimeFilteredLogTool;
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
-pub struct GitTimeFilteredLogToolParams {
+struct GitTimeFilteredLogToolParams {
     #[schemars(description = "The path to the git repository")]
-    pub repo_path: String,
+    repo_path: String,
     #[schemars(description = "The start date")]
-    pub since: String,        // Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
+    since: String,        // Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
     #[schemars(description = "The end date")]
-    pub until: Option<String>, // End date, optional (e.g., "2023-01-31", "today")
+    until: Option<String>, // End date, optional (e.g., "2023-01-31", "today")
     #[schemars(description = "The author to filter by")]
-    pub author: Option<String>, // Filter by author, optional
+    author: Option<String>, // Filter by author, optional
     #[schemars(description = "The branch to filter by")]
-    pub branch: Option<String>, // Filter by branch, optional
+    branch: Option<String>, // Filter by branch, optional
 }
 
 #[async_trait::async_trait]
