@@ -8,9 +8,13 @@ pub struct GitDiffTool;
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 struct GitDiffToolParams {
+    #[schemars(description = "The path to the git repository")]
     repo_path: String,
+    #[schemars(description = "The path to the file to diff")]
     path: Option<String>,
+    #[schemars(description = "Whether to show staged changes")]
     staged: Option<bool>,
+    #[schemars(description = "The commit to diff against")]
     commit: Option<String>,
 }
 

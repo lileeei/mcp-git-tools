@@ -10,8 +10,11 @@ pub struct GitCommitTool;
 
 #[derive(Deserialize, JsonSchema)]
 struct GitCommitToolParams {
+    #[schemars(description = "The path to the git repository")]
     repo_path: String,
+    #[schemars(description = "The commit message")]
     message: String,
+    #[schemars(description = "Whether to add all changes")]
     all: Option<bool>,
 }
 

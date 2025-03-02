@@ -11,9 +11,13 @@ pub struct GitPushTool;
 
 #[derive(Deserialize, JsonSchema)]
 struct GitPushToolParams {
+    #[schemars(description = "The path to the git repository")]
     repo_path: String,
+    #[schemars(description = "The remote to push to")]
     remote: Option<String>,
+    #[schemars(description = "The branch to push")]
     branch: Option<String>,
+    #[schemars(description = "Whether to force push")]
     force: Option<bool>,
 }
 

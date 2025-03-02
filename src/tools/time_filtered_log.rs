@@ -8,10 +8,15 @@ pub struct GitTimeFilteredLogTool;
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 pub struct GitTimeFilteredLogToolParams {
+    #[schemars(description = "The path to the git repository")]
     pub repo_path: String,
+    #[schemars(description = "The start date")]
     pub since: String,        // Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
+    #[schemars(description = "The end date")]
     pub until: Option<String>, // End date, optional (e.g., "2023-01-31", "today")
+    #[schemars(description = "The author to filter by")]
     pub author: Option<String>, // Filter by author, optional
+    #[schemars(description = "The branch to filter by")]
     pub branch: Option<String>, // Filter by branch, optional
 }
 

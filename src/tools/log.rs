@@ -8,8 +8,11 @@ pub struct GitLogTool;
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 struct GitLogToolParams {
+    #[schemars(description = "The path to the git repository")]
     repo_path: String,
+    #[schemars(description = "The maximum number of commits to return")]
     max_count: Option<u32>,
+    #[schemars(description = "The branch to filter commits by")]
     branch: Option<String>,
 }
 

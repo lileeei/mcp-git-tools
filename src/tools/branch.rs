@@ -10,6 +10,7 @@ pub struct GitBranchesTool;
 
 #[derive(Deserialize, JsonSchema)]
 struct GitBranchesToolParam {
+    #[schemars(description = "The path to the git repository")]
     repo_path: String,
 }
 

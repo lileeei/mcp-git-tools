@@ -11,6 +11,7 @@ pub struct GitStatusTool;
 
 #[derive(Deserialize, JsonSchema)]
 struct GitStatusToolParams {
+    #[schemars(description = "The path to the git repository")]
     repo_path: String,
 }
 
