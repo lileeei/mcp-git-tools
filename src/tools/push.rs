@@ -14,10 +14,13 @@ struct GitPushToolParams {
     #[schemars(description = "The path to the git repository")]
     repo_path: String,
     #[schemars(description = "The remote to push to")]
+    #[serde(default)]
     remote: Option<String>,
     #[schemars(description = "The branch to push")]
+    #[serde(default)]
     branch: Option<String>,
     #[schemars(description = "Whether to force push")]
+    #[serde(default)]
     force: Option<bool>,
 }
 

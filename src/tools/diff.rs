@@ -13,8 +13,10 @@ struct GitDiffToolParams {
     #[schemars(description = "The path to the file to diff")]
     path: Option<String>,
     #[schemars(description = "Whether to show staged changes")]
+    #[serde(default)]
     staged: Option<bool>,
     #[schemars(description = "The commit to diff against")]
+    #[serde(default)]
     commit: Option<String>,
 }
 

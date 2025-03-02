@@ -15,6 +15,7 @@ struct GitCommitToolParams {
     #[schemars(description = "The commit message")]
     message: String,
     #[schemars(description = "Whether to add all changes")]
+    #[serde(default)]
     all: Option<bool>,
 }
 

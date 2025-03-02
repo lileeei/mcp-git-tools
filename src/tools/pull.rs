@@ -14,8 +14,10 @@ struct GitPullToolParams {
     #[schemars(description = "The path to the git repository")]
     repo_path: String,
     #[schemars(description = "The remote to pull from")]
+    #[serde(default)]
     remote: Option<String>,
     #[schemars(description = "The branch to pull")]
+    #[serde(default)]
     branch: Option<String>,
 }
 

@@ -11,8 +11,10 @@ struct GitLogToolParams {
     #[schemars(description = "The path to the git repository")]
     repo_path: String,
     #[schemars(description = "The maximum number of commits to return")]
+    #[serde(default)]
     max_count: Option<u32>,
     #[schemars(description = "The branch to filter commits by")]
+    #[serde(default)]
     branch: Option<String>,
 }
 

@@ -13,10 +13,13 @@ struct GitTimeFilteredLogToolParams {
     #[schemars(description = "The start date")]
     since: String,        // Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
     #[schemars(description = "The end date")]
+    #[serde(default)]
     until: Option<String>, // End date, optional (e.g., "2023-01-31", "today")
     #[schemars(description = "The author to filter by")]
+    #[serde(default)]
     author: Option<String>, // Filter by author, optional
     #[schemars(description = "The branch to filter by")]
+    #[serde(default)]
     branch: Option<String>, // Filter by branch, optional
 }
 
