@@ -1,12 +1,14 @@
 use crate::tools::run_git_command;
 use mcp_core::{ToolError, handler::ToolHandler};
+use schemars::{schema_for, JsonSchema};
+use serde::Deserialize;
 use serde_json::{Value, json};
 
 /// Git time filtered log tool implementation
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct GitTimeFilteredLogTool;
 
-#[derive(serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct GitTimeFilteredLogToolParams {
     #[schemars(description = "The path to the git repository")]
     repo_path: String,
@@ -35,7 +37,7 @@ impl ToolHandler for GitTimeFilteredLogTool {
     }
 
     fn schema(&self) -> Value {
-        mcp_core::handler::generate_schema::<GitTimeFilteredLogToolParams>().expect("Failed to generate schema")
+        serde_json::to_value(schema_for!(GitTimeFilteredLogToolParams)).unwrap_or_default()
     }
 
     async fn call(
