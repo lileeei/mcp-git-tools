@@ -12,10 +12,10 @@ struct GitLogToolParams {
     repo_path: String,
     #[schemars(description = "The maximum number of commits to return")]
     #[serde(default)]
-    max_count: Option<u32>,
+    max_count: u32,
     #[schemars(description = "The branch to filter commits by")]
     #[serde(default)]
-    branch: Option<String>,
+    branch: String,
 }
 
 #[async_trait::async_trait]
@@ -40,7 +40,19 @@ impl ToolHandler for GitLogTool {
         let params: GitLogToolParams =
             serde_json::from_value(params).map_err(|e| ToolError::ExecutionError(e.to_string()))?;
 
-        git_log(params.repo_path, params.max_count, params.branch).await
+        let branch = if params.branch.is_empty() {
+            None
+        } else {
+            Some(params.branch)
+        };
+
+        let max_count = if params.max_count == 0 {
+            None
+        } else {
+            Some(params.max_count)
+        };
+
+        git_log(params.repo_path, max_count, branch).await
     }
 }
 

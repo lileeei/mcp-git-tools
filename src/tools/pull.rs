@@ -15,10 +15,10 @@ struct GitPullToolParams {
     repo_path: String,
     #[schemars(description = "The remote to pull from")]
     #[serde(default)]
-    remote: Option<String>,
+    remote: String,
     #[schemars(description = "The branch to pull")]
     #[serde(default)]
-    branch: Option<String>,
+    branch: String,
 }
 
 #[async_trait]
@@ -39,7 +39,19 @@ impl ToolHandler for GitPullTool {
         let params: GitPullToolParams =
             serde_json::from_value(params).map_err(|e| ToolError::ExecutionError(e.to_string()))?;
 
-        git_pull(params.repo_path, params.remote, params.branch).await
+        let remote = if params.remote.is_empty() {
+            None
+        } else {
+            Some(params.remote)
+        };
+
+        let branch = if params.branch.is_empty() {
+            None
+        } else {
+            Some(params.branch)
+        };
+
+        git_pull(params.repo_path, remote, branch).await
     }
 }
 

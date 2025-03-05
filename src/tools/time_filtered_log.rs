@@ -16,13 +16,13 @@ struct GitTimeFilteredLogToolParams {
     since: String,        // Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
     #[schemars(description = "The end date")]
     #[serde(default)]
-    until: Option<String>, // End date, optional (e.g., "2023-01-31", "today")
+    until: String, // End date, optional (e.g., "2023-01-31", "today")
     #[schemars(description = "The author to filter by")]
     #[serde(default)]
-    author: Option<String>, // Filter by author, optional
+    author: String, // Filter by author, optional
     #[schemars(description = "The branch to filter by")]
     #[serde(default)]
-    branch: Option<String>, // Filter by branch, optional
+    branch: String, // Filter by branch, optional
 }
 
 #[async_trait::async_trait]
@@ -47,12 +47,30 @@ impl ToolHandler for GitTimeFilteredLogTool {
         let params: GitTimeFilteredLogToolParams =
             serde_json::from_value(params).map_err(|e| ToolError::ExecutionError(e.to_string()))?;
 
+        let until = if params.until.is_empty() {
+            None
+        } else {
+            Some(params.until)
+        };
+
+        let author = if params.author.is_empty() {
+            None
+        } else {
+            Some(params.author)
+        };
+        
+        let branch = if params.branch.is_empty() {
+            None
+        } else {
+            Some(params.branch)
+        };
+
         git_time_filtered_log(
             params.repo_path,
             params.since,
-            params.until,
-            params.author,
-            params.branch
+            until,
+            author,
+            branch
         ).await
     }
 }

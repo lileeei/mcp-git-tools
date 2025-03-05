@@ -11,13 +11,13 @@ struct GitDiffToolParams {
     #[schemars(description = "The path to the git repository")]
     repo_path: String,
     #[schemars(description = "The path to the file to diff")]
-    path: Option<String>,
+    path: String,
     #[schemars(description = "Whether to show staged changes")]
     #[serde(default)]
-    staged: Option<bool>,
+    staged: bool,
     #[schemars(description = "The commit to diff against")]
     #[serde(default)]
-    commit: Option<String>,
+    commit: String,
 }
 
 #[async_trait::async_trait]
@@ -39,7 +39,25 @@ impl ToolHandler for GitDiffTool {
         let params: GitDiffToolParams =
             serde_json::from_value(params).map_err(|e| ToolError::ExecutionError(e.to_string()))?;
 
-        git_diff(params.repo_path, params.path, params.staged, params.commit).await
+        let staged = if params.staged {
+            Some(true)
+        } else {
+            None
+        };
+
+        let commit = if params.commit.is_empty() {  
+            None
+        } else {
+            Some(params.commit)
+        };
+
+        let path = if params.path.is_empty() {
+            None
+        } else {
+            Some(params.path)
+        };  
+
+        git_diff(params.repo_path, path, staged, commit).await
     }
 }
 

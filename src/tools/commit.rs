@@ -16,7 +16,7 @@ struct GitCommitToolParams {
     message: String,
     #[schemars(description = "Whether to add all changes")]
     #[serde(default)]
-    all: Option<bool>,
+    all: bool,
 }
 
 #[async_trait]
@@ -37,7 +37,13 @@ impl ToolHandler for GitCommitTool {
         let params: GitCommitToolParams =
             serde_json::from_value(params).map_err(|e| ToolError::ExecutionError(e.to_string()))?;
 
-        git_commit(params.repo_path, params.message, params.all).await
+        let all = if params.all{
+            Some(true)
+        } else {
+            None
+        };
+
+        git_commit(params.repo_path, params.message, all).await
     }
 }
 

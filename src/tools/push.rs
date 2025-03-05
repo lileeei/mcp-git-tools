@@ -15,13 +15,13 @@ struct GitPushToolParams {
     repo_path: String,
     #[schemars(description = "The remote to push to")]
     #[serde(default)]
-    remote: Option<String>,
+    remote: String,
     #[schemars(description = "The branch to push")]
     #[serde(default)]
-    branch: Option<String>,
+    branch: String,
     #[schemars(description = "Whether to force push")]
     #[serde(default)]
-    force: Option<bool>,
+    force: bool,
 }
 
 #[async_trait]
@@ -41,7 +41,26 @@ impl ToolHandler for GitPushTool {
     async fn call(&self, params: Value) -> Result<Value, ToolError> {
         let params: GitPushToolParams =
             serde_json::from_value(params).map_err(|e| ToolError::ExecutionError(e.to_string()))?;
-        git_push(params.repo_path, params.remote, params.branch, params.force).await
+
+        let remote = if params.remote.is_empty() {
+            None
+        } else {
+            Some(params.remote)
+        };
+
+        let branch = if params.branch.is_empty() {
+            None
+        } else {
+            Some(params.branch)
+        };
+        
+        let force = if params.force {
+            Some(true)
+        } else {
+            None
+        };
+
+        git_push(params.repo_path, remote, branch, force).await
     }
 }
 
