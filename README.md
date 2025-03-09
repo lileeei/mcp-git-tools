@@ -16,12 +16,14 @@ This library provides a set of Git operations that can be called through the Mod
 - `git_pull` - Pull changes from remote
 - `git_push` - Push changes to remote
 - `git_diff` - View file differences
+- `git_add` - Add file contents to the staging area
+- `git_reset` - Reset the staging area or working tree to a specified state
 
 ## Installation
 
 ```bash
 # Clone the repository
-git clone https://your-repository-url/mcp-git-tools.git
+git clone https://github.com/lileeei/mcp-git-tools.git
 
 # Navigate to the directory
 cd mcp-git-tools
@@ -252,7 +254,45 @@ View file differences.
 **Returns:**
 ```json
 {
-  "changes": "diff --git a/file1.txt b/file1.txt\nindex abcd1234..efgh5678 100644\n--- a/file1.txt\n+++ b/file1.txt\n@@ -1,5 +1,5 @@\n Line 1\n-Line 2\n+Modified Line 2\n Line 3"
+  "diff": "diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n Line 1\n Line 2\n+New line\n Line 3"
+}
+```
+
+### git_add
+
+Add file contents to the staging area.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+- `path` - Path(s) to add, or patterns to match. Use '.' for all files.
+- `update` - (optional) Whether to update, rather than add
+- `all` - (optional) Whether to add all changes, including untracked files
+
+**Returns:**
+```json
+{
+  "success": true,
+  "message": "Files staged successfully",
+  "status": ["M file1.txt", "A file2.txt"]
+}
+```
+
+### git_reset
+
+Reset the staging area or working tree to a specified state.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+- `path` - Path(s) to reset, or patterns to match. Use '.' for all files.
+- `hard` - (optional) Whether to perform a hard reset (WARNING: discards all local changes)
+- `target` - (optional) The commit or branch to reset to (defaults to HEAD)
+
+**Returns:**
+```json
+{
+  "success": true,
+  "message": "Files unstaged successfully",
+  "status": ["?? file1.txt", "?? file2.txt"]
 }
 ```
 

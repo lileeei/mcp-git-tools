@@ -1,22 +1,26 @@
 //! Git tools implementations
 
+pub mod add;
 pub mod branch;
 pub mod commit;
 pub mod diff;
 pub mod log;
 pub mod pull;
 pub mod push;
+pub mod reset;
 pub mod status;
 pub mod time_filtered_log;
 
 // Re-export all tools to make them publicly accessible
-pub use status::GitStatusTool;
+pub use add::GitAddTool;
 pub use branch::GitBranchesTool;
-pub use log::GitLogTool;
 pub use commit::GitCommitTool;
+pub use diff::GitDiffTool;
+pub use log::GitLogTool;
 pub use pull::GitPullTool;
 pub use push::GitPushTool;
-pub use diff::GitDiffTool;
+pub use reset::GitResetTool;
+pub use status::GitStatusTool;
 pub use time_filtered_log::GitTimeFilteredLogTool;
 
 use mcp_core::handler::ToolError;

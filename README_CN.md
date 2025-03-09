@@ -16,12 +16,14 @@ Git 工具集成库，用于 Model Context Protocol (MCP)。
 - `git_pull` - 从远程拉取更改
 - `git_push` - 推送更改到远程
 - `git_diff` - 查看文件差异
+- `git_add` - 将文件内容添加到暂存区
+- `git_reset` - 重置暂存区或工作区到指定状态
 
 ## 安装
 
 ```bash
 # 克隆仓库
-git clone https://your-repository-url/mcp-git-tools.git
+git clone https://github.com/lileeei/mcp-git-tools.git
 
 # 进入目录
 cd mcp-git-tools
@@ -252,7 +254,45 @@ let server = builder.build();
 **返回：**
 ```json
 {
-  "changes": "diff --git a/file1.txt b/file1.txt\nindex abcd1234..efgh5678 100644\n--- a/file1.txt\n+++ b/file1.txt\n@@ -1,5 +1,5 @@\n Line 1\n-Line 2\n+Modified Line 2\n Line 3"
+  "diff": "diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n Line 1\n Line 2\n+New line\n Line 3"
+}
+```
+
+### git_add
+
+将文件内容添加到暂存区。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+- `path` - 要添加的文件路径或匹配模式。使用'.'表示所有文件
+- `update` - (可选) 是否只更新已跟踪的文件
+- `all` - (可选) 是否添加所有更改，包括未跟踪的文件
+
+**返回：**
+```json
+{
+  "success": true,
+  "message": "Files staged successfully",
+  "status": ["M file1.txt", "A file2.txt"]
+}
+```
+
+### git_reset
+
+重置暂存区或工作区到指定状态。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+- `path` - 要重置的文件路径或匹配模式。使用'.'表示所有文件
+- `hard` - (可选) 是否执行硬重置（警告：会丢弃所有本地更改）
+- `target` - (可选) 要重置到的提交或分支（默认为HEAD）
+
+**返回：**
+```json
+{
+  "success": true,
+  "message": "Files unstaged successfully",
+  "status": ["?? file1.txt", "?? file2.txt"]
 }
 ```
 
