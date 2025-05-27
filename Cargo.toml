@@ -1,3 +1,5 @@
+cargo-features = ["edition2024"]
+
 [package]
 name = "mcp-git-tools"
 version = "0.1.0"
@@ -7,9 +9,8 @@ license = "MIT"
 
 [dependencies]
 # MCP dependencies 
-mcp-core = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "b24e912543d6e79bcc759be6db6a76416deef66b" }
-mcp-server = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "b24e912543d6e79bcc759be6db6a76416deef66b" }
-mcp-macros = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "b24e912543d6e79bcc759be6db6a76416deef66b" }
+rmcp = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "915bc3fb37fe259fba1a853a9dd03566593f3310", features = ["server"] }
+rmcp-macros = { git = "https://github.com/modelcontextprotocol/rust-sdk.git", rev = "915bc3fb37fe259fba1a853a9dd03566593f3310" }
 
 # Async runtime
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "time"] }
