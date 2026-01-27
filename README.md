@@ -1,6 +1,6 @@
 # MCP Git Tools
 
-Git tool integration library for the Model Context Protocol (MCP).
+Git tools implementation for the Model Context Protocol (MCP).
 
 [中文文档](README_CN.md)
 
@@ -23,13 +23,13 @@ This library provides a set of Git operations that can be called through the Mod
 
 ```bash
 # Clone the repository
-git clone https://github.com/lileeei/mcp-git-tools.git
+git clone https://gitcode.com/lileeei/mcp-git-tools.git
 
 # Navigate to the directory
 cd mcp-git-tools
 
 # Build
-cargo build
+cargo build --release
 ```
 
 ## Usage
@@ -37,67 +37,81 @@ cargo build
 ### Run as a standalone server
 
 ```bash
-cargo run --bin mcp-git-server
+cargo run --release --bin mcp-git-server
 ```
 
 This starts an MCP server that interacts with clients through standard input/output.
 
-### Use in an MCP client
+### Test with MCP Inspector
 
-```rust
-use mcp_client::{
-    client::{ClientCapabilities, ClientInfo, McpClient},
-    StdioTransport, Transport, McpService,
-};
-use std::collections::HashMap;
-use std::time::Duration;
-
-// Create a connection to the Git tools server
-let transport = StdioTransport::new(
-    "path/to/mcp-git-server", 
-    vec![], 
-    HashMap::new()
-);
-
-// Start the transport
-let handle = transport.start().await?;
-let service = McpService::with_timeout(handle, Duration::from_secs(10));
-let mut client = McpClient::new(service);
-
-// Initialize the client
-client.initialize(
-    ClientInfo {
-        name: "my-client".into(),
-        version: "1.0.0".into(),
-    },
-    ClientCapabilities::default(),
-).await?;
-
-// Call the git_status tool
-let status = client
-    .call_tool("git_status", serde_json::json!({ "repo_path": "/path/to/repo" }))
-    .await?;
-
-println!("Git status: {:?}", status);
+1. Build the server:
+```bash
+cargo build --release
 ```
 
-### Integrate into your own MCP server
+2. Start the server:
+```bash
+./target/release/mcp-git-server
+```
+
+3. Use MCP Inspector to test the tools:
+   - Download MCP Inspector: https://github.com/modelcontextprotocol/inspector
+   - Click "Add a server"
+   - Enter: `/path/to/mcp-git-server/target/release/mcp-git-server`
+   - Click "Add"
+   - Test each tool using the Inspector interface
+
+## Architecture
+
+This project uses the modern RMCP SDK (v0.14.0) with a clean architecture:
+
+### Core Components
+
+**GitToolsHandler**
+- Central handler struct for all Git operations
+- Implements `ServerHandler` trait from RMCP SDK
+- Contains methods for each Git operation
+
+**ServerHandler Implementation**
+- `get_info()` - Provides server metadata and capabilities
+- `list_tools()` - Lists all available tools with their schemas
+- `call_tool()` - Routes tool calls to appropriate handler methods
+
+### Tool Implementation Pattern
+
+Each tool is implemented as a method on `GitToolsHandler`:
 
 ```rust
-use mcp_git_tools::register_git_tools;
-use mcp_server::McpServerBuilder;
-
-// Create a server
-let mut builder = McpServerBuilder::new("my-server", "1.0.0");
-
-// Register Git tools
-register_git_tools(&mut builder);
-
-// Add other tools...
-
-// Build the server
-let server = builder.build();
+impl GitToolsHandler {
+    #[tool(description = "Get the status of a git repository")]
+    pub async fn git_status(
+        &self,
+        repo_path: String,
+    ) -> Result<CallToolResult> {
+        // Implementation
+    }
+}
 ```
+
+### Parameter Handling
+
+All tool parameters use derive macros for automatic schema generation:
+
+```rust
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitStatusParams {
+    repo_path: String,
+}
+```
+
+This provides:
+- Automatic JSON schema generation
+- Type-safe parameter parsing
+- No manual serialization/deserialization code
+
+### Transport
+
+Uses RMCP's `stdio()` transport for standard input/output communication.
 
 ## Tool Details
 
@@ -168,14 +182,7 @@ Get commits within a specified time range, optionally filtered by author and bra
 **Returns:**
 ```json
 {
-  "commits": [
-    {
-      "hash": "abcd1234",
-      "author": "User Name",
-      "date": "Mon Aug 1 10:00:00 2023 +0800",
-      "message": "Initial commit"
-    }
-  ],
+  "commits": [...],
   "filters": {
     "since": "1 week ago",
     "until": "today",
@@ -254,7 +261,7 @@ View file differences.
 **Returns:**
 ```json
 {
-  "diff": "diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n Line 1\n Line 2\n+New line\n Line 3"
+  "changes": "diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n Line 1\nLine 2\nLine 3\n+New line\nLine 4"
 }
 ```
 
@@ -296,6 +303,74 @@ Reset the staging area or working tree to a specified state.
 }
 ```
 
+## Development
+
+### Project Structure
+
+```
+mcp-git-tools/
+├── Cargo.toml          # Dependencies and project configuration
+├── src/
+│   ├── lib.rs          # Core library with GitToolsHandler
+│   └── bin/
+│       └── server.rs   # Server entry point
+├── tests/
+│   └── lib_tests.rs   # Unit tests
+```
+
+### Building
+
+```bash
+# Debug build
+cargo build
+
+# Release build
+cargo build --release
+
+# Run tests
+cargo test
+
+# Run server
+cargo run --release --bin mcp-git-server
+```
+
+### Adding New Tools
+
+To add a new Git tool:
+
+1. Add the parameter struct in `src/lib.rs`:
+```rust
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitMyToolParams {
+    repo_path: String,
+    // other parameters...
+}
+```
+
+2. Add the method in the `GitToolsHandler` impl block:
+```rust
+#[tool(description = "Description of your tool")]
+pub async fn git_my_tool(
+    &self,
+    repo_path: String,
+    // other parameters...
+) -> Result<CallToolResult> {
+    // Implementation
+}
+```
+
+3. Update the `list_tools()` method to include your new tool in the returned list
+
+## Dependencies
+
+- `rmcp` v0.14.0 - The official RMCP SDK
+- `tokio` - Async runtime
+- `serde` - Serialization framework
+- `serde_json` - JSON implementation
+- `anyhow` - Error handling
+- `tracing` - Logging framework
+- `tempfile` - Testing utilities
+
 ## License
 
-MIT License 
+MIT License

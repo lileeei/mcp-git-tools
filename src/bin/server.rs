@@ -1,37 +1,47 @@
-use mcp_git_tools::register_git_tools;
-use mcp_git_tools::McpServerBuilder;
+use mcp_git_tools::GitToolsHandler;
+use rmcp::{transport::stdio, ServiceExt};
 use tracing_subscriber::EnvFilter;
-use mcp_server::ByteTransport;
-// Use tokio's async stdin/stdout
-use tokio::io::{stdin, stdout};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
+    // Initialize logging - output to stderr to avoid interfering with MCP protocol
     tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         .with_env_filter(
             EnvFilter::from_default_env()
-                .add_directive("mcp_git_tools=debug".parse().unwrap())
-                .add_directive("mcp_server=info".parse().unwrap()),
+                .add_directive("mcp_git_tools=debug".parse()?)
+                .add_directive("rmcp=warn".parse()?),
         )
         .init();
 
-    // Create the server
-    let mut builder = McpServerBuilder::new("git-tools", "1.0.0");
-    
-    // Register Git tools
-    register_git_tools(&mut builder);
-    
-    // Build the server
-    let server = builder.build();
-    
-    println!("Starting Git Tools MCP server...");
-    
-    // Create a ByteTransport using tokio's stdin/stdout
-    let transport = ByteTransport::new(stdin(), stdout());
-    
-    // Run the server
-    server.run(transport).await?;
-    
+    // Create a Git tools handler
+    let handler = GitToolsHandler::new();
+
+    eprintln!("Starting Git Tools MCP server...");
+
+    // Create transport and serve
+    let transport = stdio();
+
+    eprintln!("Starting server transport...");
+
+    // Serve the handler - this will block until the client disconnects
+    let server = match handler.serve(transport).await {
+        Ok(s) => {
+            eprintln!("Server started successfully, waiting for MCP client connection...");
+            s
+        }
+        Err(e) => {
+            tracing::error!("Failed to start server: {:?}", e);
+            return Err(e.into());
+        }
+    };
+
+    // Wait for server to finish
+    let result = server.waiting().await;
+
+    if let Err(e) = result {
+        tracing::error!("Server error: {:?}", e);
+    }
+
     Ok(())
-} 
+}

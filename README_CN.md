@@ -1,6 +1,6 @@
 # MCP Git Tools (中文版)
 
-Git 工具集成库，用于 Model Context Protocol (MCP)。
+Git 工具库，用于 Model Context Protocol (MCP)。
 
 [English Documentation](README.md)
 
@@ -23,13 +23,13 @@ Git 工具集成库，用于 Model Context Protocol (MCP)。
 
 ```bash
 # 克隆仓库
-git clone https://github.com/lileeei/mcp-git-tools.git
+git clone https://gitcode.com/lileeei/mcp-git-tools.git
 
 # 进入目录
 cd mcp-git-tools
 
 # 构建
-cargo build
+cargo build --release
 ```
 
 ## 使用方法
@@ -37,67 +37,81 @@ cargo build
 ### 作为独立服务器运行
 
 ```bash
-cargo run --bin mcp-git-server
+cargo run --release --bin mcp-git-server
 ```
 
 这会启动一个 MCP 服务器，通过标准输入/输出与客户端交互。
 
-### 在 MCP 客户端中使用
+### 使用 MCP Inspector 测试
 
-```rust
-use mcp_client::{
-    client::{ClientCapabilities, ClientInfo, McpClient},
-    StdioTransport, Transport, McpService,
-};
-use std::collections::HashMap;
-use std::time::Duration;
-
-// 创建到 Git 工具服务器的连接
-let transport = StdioTransport::new(
-    "path/to/mcp-git-server", 
-    vec![], 
-    HashMap::new()
-);
-
-// 启动 transport
-let handle = transport.start().await?;
-let service = McpService::with_timeout(handle, Duration::from_secs(10));
-let mut client = McpClient::new(service);
-
-// 初始化客户端
-client.initialize(
-    ClientInfo {
-        name: "my-client".into(),
-        version: "1.0.0".into(),
-    },
-    ClientCapabilities::default(),
-).await?;
-
-// 调用 git_status 工具
-let status = client
-    .call_tool("git_status", serde_json::json!({ "repo_path": "/path/to/repo" }))
-    .await?;
-
-println!("Git status: {:?}", status);
+1. 构建服务器：
+```bash
+cargo build --release
 ```
 
-### 集成到自己的 MCP 服务器
+2. 启动服务器：
+```bash
+./target/release/mcp-git-server
+```
+
+3. 使用 MCP Inspector 测试工具：
+   - 下载 MCP Inspector：https://github.com/modelcontextprotocol/inspector
+   - 点击 "Add a server"
+   - 输入：`/path/to/mcp-git-server/target/release/mcp-git-server`
+   - 点击 "Add"
+   - 使用 Inspector 界面测试每个工具
+
+## 架构
+
+此项目使用现代 RMCP SDK (v0.14.0)，采用清晰的架构设计：
+
+### 核心组件
+
+**GitToolsHandler**
+- 所有 Git 操作的中央处理器
+- 实现 RMCP SDK 的 `ServerHandler` trait
+- 包含每个 Git 操作的方法
+
+**ServerHandler 实现**
+- `get_info()` - 提供服务器元数据和功能
+- `list_tools()` - 列出所有可用工具及其 schema
+- `call_tool()` - 将工具调用路由到相应的处理方法
+
+### 工具实现模式
+
+每个工具都作为 `GitToolsHandler` 的方法实现：
 
 ```rust
-use mcp_git_tools::register_git_tools;
-use mcp_server::McpServerBuilder;
-
-// 创建服务器
-let mut builder = McpServerBuilder::new("my-server", "1.0.0");
-
-// 注册 Git 工具
-register_git_tools(&mut builder);
-
-// 添加其他工具...
-
-// 构建服务器
-let server = builder.build();
+impl GitToolsHandler {
+    #[tool(description = "获取 Git 仓库状态")]
+    pub async fn git_status(
+        &self,
+        repo_path: String,
+    ) -> Result<CallToolResult> {
+        // 实现
+    }
+}
 ```
+
+### 参数处理
+
+所有工具参数使用 derive 宏进行自动 schema 生成：
+
+```rust
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitStatusParams {
+    repo_path: String,
+}
+```
+
+这提供了：
+- 自动 JSON schema 生成
+- 类型安全的参数解析
+- 无需手动序列化/反序列化代码
+
+### 传输层
+
+使用 RMCP 的 `stdio()` 传输进行标准输入/输出通信。
 
 ## 工具详情
 
@@ -168,14 +182,7 @@ let server = builder.build();
 **返回：**
 ```json
 {
-  "commits": [
-    {
-      "hash": "abcd1234",
-      "author": "User Name",
-      "date": "Mon Aug 1 10:00:00 2023 +0800",
-      "message": "Initial commit"
-    }
-  ],
+  "commits": [...],
   "filters": {
     "since": "1 week ago",
     "until": "today",
@@ -254,7 +261,7 @@ let server = builder.build();
 **返回：**
 ```json
 {
-  "diff": "diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n Line 1\n Line 2\n+New line\n Line 3"
+  "changes": "diff --git a/file.txt b/file.txt\nindex 1234567..abcdefg 100644\n--- a/file.txt\n+++ b/file.txt\n@@ -1,3 +1,4 @@\n Line 1\nLine 2\nLine 3\n+New line\nLine 4"
 }
 ```
 
@@ -296,6 +303,74 @@ let server = builder.build();
 }
 ```
 
+## 开发
+
+### 项目结构
+
+```
+mcp-git-tools/
+├── Cargo.toml          # 依赖和项目配置
+├── src/
+│   ├── lib.rs          # 核心库，包含 GitToolsHandler
+│   └── bin/
+│       └── server.rs   # 服务器入口
+├── tests/
+│   └── lib_tests.rs   # 单元测试
+```
+
+### 构建
+
+```bash
+# Debug 构建
+cargo build
+
+# Release 构建
+cargo build --release
+
+# 运行测试
+cargo test
+
+# 运行服务器
+cargo run --release --bin mcp-git-server
+```
+
+### 添加新工具
+
+要添加新的 Git 工具：
+
+1. 在 `src/lib.rs` 中添加参数结构体：
+```rust
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitMyToolParams {
+    repo_path: String,
+    // 其他参数...
+}
+```
+
+2. 在 `GitToolsHandler` impl 块中添加方法：
+```rust
+#[tool(description = "工具描述")]
+pub async fn git_my_tool(
+    &self,
+    repo_path: String,
+    // 其他参数...
+) -> Result<CallToolResult> {
+    // 实现
+}
+```
+
+3. 更新 `list_tools()` 方法，在返回的列表中包含新工具
+
+## 依赖项
+
+- `rmcp` v0.14.0 - 官方 RMCP SDK
+- `tokio` - 异步运行时
+- `serde` - 序列化框架
+- `serde_json` - JSON 实现
+- `anyhow` - 错误处理
+- `tracing` - 日志框架
+- `tempfile` - 测试工具
+
 ## 许可证
 
-MIT 许可证 
+MIT 许可证
