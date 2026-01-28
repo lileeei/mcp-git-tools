@@ -163,8 +163,8 @@ Get commit history with flexible filtering options.
     {
       "hash": "abcd1234",
       "author": "User Name",
-      "date": "Mon Aug 1 10:00:00 2023 +0800",
-      "message": "Initial commit"
+      "author_date": "Mon Aug 1 10:00:00 2023 +0800",
+      "message_title": "Initial commit"
     }
   ]
 }

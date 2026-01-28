@@ -229,8 +229,8 @@ impl GitToolsHandler {
             commits.push(json!({
                 "hash": commit.id().to_string(),
                 "author": author_info.name.to_str().unwrap_or("").to_string(),
-                "date": date_str,
-                "message": message.title.to_string()
+                "author_date": date_str,
+                "message_title": message.title.to_string()
             }));
         }
 
