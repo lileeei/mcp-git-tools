@@ -1,6 +1,7 @@
 //! MCP Git Tools library - Provides Git functionality through the Model Context Protocol
 
 use anyhow::Result;
+use gix::status;
 use rmcp::{
     model::*,
     schemars, serde,
@@ -51,8 +52,70 @@ impl GitToolsHandler {
 
     /// Get the status of a git repository
     pub async fn git_status(&self, repo_path: String) -> Result<CallToolResult> {
-        let status_output = run_git_command(&repo_path, &["status", "--porcelain"])?;
-        let status_lines: Vec<&str> = status_output.lines().collect();
+        let repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
+
+        let platform = repo
+            .status(gix::progress::Discard)?
+            .untracked_files(status::UntrackedFiles::Files);
+
+        let mut iter = platform.into_iter(Vec::new())?;
+
+        let mut status_lines = Vec::new();
+
+        for item in &mut iter {
+            let item = item?;
+            match item {
+                status::Item::TreeIndex(change) => {
+                    let (location, _, _, _) = change.fields();
+                    let status_char = match change {
+                        gix::diff::index::Change::Addition { .. } => "A",
+                        gix::diff::index::Change::Deletion { .. } => "D",
+                        gix::diff::index::Change::Modification { .. } => "M",
+                        gix::diff::index::Change::Rewrite { .. } => "R",
+                    };
+                    status_lines.push(format!("{}  {}", status_char, location));
+                }
+                status::Item::IndexWorktree(item) => match item {
+                    status::index_worktree::Item::Modification {
+                        rela_path, status, ..
+                    } => {
+                        let status_str = entry_status_to_porcelain(&status);
+                        status_lines.push(format!("{:2}  {}", status_str, rela_path));
+                    }
+                    status::index_worktree::Item::DirectoryContents {
+                        entry,
+                        collapsed_directory_status,
+                        ..
+                    } => {
+                        if collapsed_directory_status.is_none() {
+                            let path = &entry.rela_path;
+                            let slash = if entry
+                                .disk_kind
+                                .unwrap_or(gix::dir::entry::Kind::File)
+                                .is_dir()
+                            {
+                                "/"
+                            } else {
+                                ""
+                            };
+                            status_lines.push(format!("?? {}{}", path, slash));
+                        }
+                    }
+                    status::index_worktree::Item::Rewrite {
+                        source,
+                        dirwalk_entry,
+                        ..
+                    } => {
+                        status_lines.push(format!(
+                            "R  {} → {}",
+                            source.rela_path(),
+                            dirwalk_entry.rela_path
+                        ));
+                    }
+                },
+            }
+        }
 
         let result = json!({
             "status": status_lines,
@@ -390,6 +453,39 @@ impl GitToolsHandler {
         });
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
+}
+
+/// 将EntryStatus转换为porcelain格式
+fn entry_status_to_porcelain(
+    status: &gix::status::plumbing::index_as_worktree::EntryStatus<(), gix::submodule::Status>,
+) -> String {
+    use gix::status::plumbing::index_as_worktree::EntryStatus::*;
+
+    match status {
+        Conflict { .. } => "UU".to_string(),
+        Change(change) => match change {
+            gix::status::plumbing::index_as_worktree::Change::Removed => " D".to_string(),
+            gix::status::plumbing::index_as_worktree::Change::Type { .. } => " T".to_string(),
+            gix::status::plumbing::index_as_worktree::Change::Modification {
+                executable_bit_changed: true,
+                content_change: _,
+                ..
+            } => " M".to_string(),
+            gix::status::plumbing::index_as_worktree::Change::Modification {
+                executable_bit_changed: false,
+                content_change: None,
+                ..
+            } => "  ".to_string(),
+            gix::status::plumbing::index_as_worktree::Change::Modification {
+                executable_bit_changed: false,
+                content_change: Some(_),
+                ..
+            } => " M".to_string(),
+            _ => "??".to_string(),
+        },
+        NeedsUpdate(_) => "  ".to_string(),
+        IntentToAdd => "A ".to_string(),
     }
 }
 

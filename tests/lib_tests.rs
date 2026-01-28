@@ -195,3 +195,80 @@ async fn test_git_reset_hard() {
     let result = handler.git_reset(repo_path, None, Some(true), None).await;
     assert!(result.is_ok());
 }
+
+#[tokio::test]
+async fn test_git_status_detailed_untracked() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "test content").unwrap();
+
+    let result = handler.git_status(repo_path).await;
+    assert!(result.is_ok());
+
+    let call_result = result.unwrap();
+    assert_eq!(call_result.content.len(), 1);
+}
+
+#[tokio::test]
+async fn test_git_status_detailed_staged() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "test content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let result = handler.git_status(repo_path).await;
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap().content.len(), 1);
+}
+
+#[tokio::test]
+async fn test_git_status_detailed_modified() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    std::fs::write(&test_file, "modified content").unwrap();
+
+    let result = handler.git_status(repo_path).await;
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap().content.len(), 1);
+}
+
+#[tokio::test]
+async fn test_git_status_detailed_invalid_repo() {
+    let temp_dir = tempdir().unwrap();
+    let non_git_dir = temp_dir.path().join("not_a_repo");
+    std::fs::create_dir(&non_git_dir).unwrap();
+    let handler = GitToolsHandler::new();
+
+    let result = handler
+        .git_status(non_git_dir.to_str().unwrap().to_string())
+        .await;
+    assert!(result.is_err());
+}
