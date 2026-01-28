@@ -25,8 +25,12 @@ gix = { version = "0.78", default-features = false, features = [
     "index",
     "blob-diff",
     "excludes",
-    "dirwalk"
+    "dirwalk",
+    "revision"
 ] }
+
+# Date/time formatting
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 
 # Logging
 tracing = "0.1"

@@ -102,7 +102,9 @@ async fn test_git_log() {
         .output()
         .unwrap();
 
-    let result = handler.git_log(repo_path, Some(5), None).await;
+    let result = handler
+        .git_log(repo_path, Some(5), None, None, None, None)
+        .await;
     assert!(result.is_ok());
 
     let call_result = result.unwrap();
@@ -271,4 +273,131 @@ async fn test_git_status_detailed_invalid_repo() {
         .git_status(non_git_dir.to_str().unwrap().to_string())
         .await;
     assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn test_git_log_with_author_filter() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let result = handler
+        .git_log(repo_path, None, None, None, None, Some("Test".to_string()))
+        .await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_git_log_with_time_filter() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let result = handler
+        .git_log(
+            repo_path,
+            None,
+            None,
+            Some("1 week ago".to_string()),
+            None,
+            None,
+        )
+        .await;
+    if !result.is_ok() {
+        eprintln!("Error: {:?}", result.as_ref().unwrap_err());
+    }
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_git_log_with_branch() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let result = handler
+        .git_log(repo_path, None, Some("HEAD".to_string()), None, None, None)
+        .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_git_log_with_time_range() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let result = handler
+        .git_log(
+            repo_path,
+            None,
+            None,
+            Some("1 year ago".to_string()),
+            None,
+            None,
+        )
+        .await;
+
+    assert!(result.is_ok());
 }

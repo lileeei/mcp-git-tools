@@ -1,5 +1,5 @@
 use mcp_git_tools::GitToolsHandler;
-use rmcp::{transport::stdio, ServiceExt};
+use rmcp::{ServiceExt, transport::stdio};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]

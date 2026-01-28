@@ -1,12 +1,16 @@
 //! MCP Git Tools library - Provides Git functionality through the Model Context Protocol
 
 use anyhow::Result;
+use chrono::{TimeZone, Utc};
+use gix::bstr::ByteSlice;
+use gix::date;
+use gix::prelude::ObjectIdExt;
 use gix::status;
 use rmcp::{
+    ServerHandler,
     model::*,
     schemars, serde,
     serde_json::{self, json},
-    ServerHandler,
 };
 use std::process::Command;
 use std::sync::Arc;
@@ -131,41 +135,104 @@ impl GitToolsHandler {
         repo_path: String,
         max_count: Option<u32>,
         branch: Option<String>,
+        since: Option<String>,
+        until: Option<String>,
+        author: Option<String>,
     ) -> Result<CallToolResult> {
-        let mut cmd_args: Vec<String> = vec![
-            "log".to_string(),
-            "--pretty=format:%H|%an|%ad|%s".to_string(),
-        ];
+        let repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
 
-        if let Some(count) = max_count {
-            cmd_args.push("-n".to_string());
-            cmd_args.push(count.to_string());
-        }
+        let start_commit = if let Some(branch_name) = &branch {
+            let spec = repo
+                .rev_parse(branch_name.as_str())
+                .map_err(|e| anyhow::anyhow!("Failed to parse branch '{}': {}", branch_name, e))?;
+            spec.single()
+                .ok_or_else(|| anyhow::anyhow!("Invalid branch reference: {}", branch_name))?
+                .object()
+                .map_err(|e| anyhow::anyhow!("Failed to find commit: {}", e))?
+                .into_commit()
+        } else {
+            repo.head_commit()
+                .map_err(|e| anyhow::anyhow!("Failed to get HEAD commit: {}", e))?
+        };
 
-        if let Some(b) = branch {
-            cmd_args.push(b);
-        }
+        let commit = start_commit;
 
-        let cmd_args_refs: Vec<&str> = cmd_args.iter().map(|s| s.as_str()).collect();
-        let log_output = run_git_command(&repo_path, &cmd_args_refs)?;
+        let platform = commit.ancestors();
 
-        let commits: Vec<serde_json::Value> = log_output
-            .lines()
-            .filter(|line: &&str| !line.is_empty())
-            .map(|line: &str| {
-                let parts: Vec<&str> = line.split('|').collect();
-                if parts.len() >= 4 {
-                    json!({
-                        "hash": parts[0],
-                        "author": parts[1],
-                        "date": parts[2],
-                        "message": parts[3]
-                    })
-                } else {
-                    json!({ "raw": line })
+        let mut commits = Vec::new();
+
+        let mut iter = platform
+            .all()
+            .map_err(|e| anyhow::anyhow!("Failed to create commit iterator: {}", e))?;
+
+        while let Some(info) = iter.next() {
+            let info = info.map_err(|e| anyhow::anyhow!("Failed to iterate commits: {}", e))?;
+
+            if let Some(count) = max_count {
+                if commits.len() >= count as usize {
+                    break;
                 }
-            })
-            .collect();
+            }
+
+            let commit = repo
+                .find_object(info.id.attach(&repo))
+                .map_err(|e| anyhow::anyhow!("Failed to find commit: {}", e))?
+                .into_commit();
+
+            let decoded = commit
+                .decode()
+                .map_err(|e| anyhow::anyhow!("Failed to decode commit: {}", e))?;
+
+            let author_info = decoded
+                .author()
+                .map_err(|e| anyhow::anyhow!("Failed to parse author: {}", e))?;
+
+            let author_time = author_info
+                .time()
+                .map_err(|e| anyhow::anyhow!("Failed to get commit time: {}", e))?;
+
+            if let Some(since_str) = &since {
+                let now = std::time::SystemTime::now();
+                let since_time = date::parse(since_str, Some(now)).map_err(|e| {
+                    anyhow::anyhow!("Failed to parse since time '{}': {}", since_str, e)
+                })?;
+                if author_time.seconds < since_time.seconds {
+                    continue;
+                }
+            }
+
+            if let Some(until_str) = &until {
+                let now = std::time::SystemTime::now();
+                let until_time = date::parse(until_str, Some(now)).map_err(|e| {
+                    anyhow::anyhow!("Failed to parse until time '{}': {}", until_str, e)
+                })?;
+                if author_time.seconds > until_time.seconds {
+                    continue;
+                }
+            }
+
+            if let Some(author_filter) = &author {
+                let author_name = author_info.name.to_str().unwrap_or("");
+                let author_email = author_info.email.to_str().unwrap_or("");
+                if !author_name.contains(author_filter) && !author_email.contains(author_filter) {
+                    continue;
+                }
+            }
+
+            let message = commit
+                .message()
+                .map_err(|e| anyhow::anyhow!("Failed to parse commit message: {}", e))?;
+
+            let date_str = format_git_date(&author_time);
+
+            commits.push(json!({
+                "hash": commit.id().to_string(),
+                "author": author_info.name.to_str().unwrap_or("").to_string(),
+                "date": date_str,
+                "message": message.title.to_string()
+            }));
+        }
 
         let result = json!({ "commits": commits });
 
@@ -392,67 +459,18 @@ impl GitToolsHandler {
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
+}
 
-    /// Get commits within a specified time range, optionally filtered by author and branch
-    pub async fn git_time_filtered_log(
-        &self,
-        repo_path: String,
-        since: String,
-        until: Option<String>,
-        author: Option<String>,
-        branch: Option<String>,
-    ) -> Result<CallToolResult> {
-        let mut args: Vec<String> = vec![
-            "log".to_string(),
-            "--pretty=format:%H|%an|%ad|%s".to_string(),
-        ];
-
-        args.push(format!("--since={}", since));
-
-        if let Some(ref until_date) = until {
-            args.push(format!("--until={}", until_date));
-        }
-
-        if let Some(ref author_name) = author {
-            args.push(format!("--author={}", author_name));
-        }
-
-        if let Some(ref branch_name) = branch {
-            args.push(branch_name.to_string());
-        }
-
-        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        let log_output = run_git_command(&repo_path, &cmd_args_refs)?;
-
-        let commits: Vec<serde_json::Value> = log_output
-            .lines()
-            .filter(|line: &&str| !line.is_empty())
-            .map(|line: &str| {
-                let parts: Vec<&str> = line.split('|').collect();
-                if parts.len() >= 4 {
-                    json!({
-                        "hash": parts[0],
-                        "author": parts[1],
-                        "date": parts[2],
-                        "message": parts[3]
-                    })
-                } else {
-                    json!({ "raw": line })
-                }
-            })
-            .collect();
-
-        let result = json!({
-            "commits": commits,
-            "filters": {
-                "since": since,
-                "until": until,
-                "author": author,
-                "branch": branch
-            }
-        });
-
-        Ok(CallToolResult::success(vec![Content::json(result)?]))
+/// 格式化 git 日期为标准格式
+fn format_git_date(time: &gix::date::Time) -> String {
+    if let Some(dt) = Utc.timestamp_opt(time.seconds, 0).single() {
+        let offset_hours = time.offset.abs() / 3600;
+        let offset_minutes = (time.offset.abs() % 3600) / 60;
+        let sign = if time.offset >= 0 { '+' } else { '-' };
+        dt.format("%a %b %e %H:%M:%S %Y ").to_string()
+            + &format!("{}{:02}{:02}", sign, offset_hours, offset_minutes)
+    } else {
+        format!("{}", time.seconds)
     }
 }
 
@@ -525,7 +543,7 @@ impl ServerHandler for GitToolsHandler {
                 Tool {
                     name: "git_log".into(),
                     title: None,
-                    description: Some("Get the commit history of a git repository".into()),
+                    description: Some("Get commit history of a git repository with flexible filtering options (by time, author, branch, count)".into()),
                     input_schema: Arc::new(
                         serde_json::to_value(schemars::schema_for!(GitLogParams))
                             .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
@@ -650,22 +668,7 @@ impl ServerHandler for GitToolsHandler {
                     meta: None,
                     output_schema: None,
                 },
-                Tool {
-                    name: "git_time_filtered_log".into(),
-                    title: None,
-                    description: Some("Get commits within a specified time range, optionally filtered by author and branch".into()),
-                    input_schema: Arc::new(
-                        serde_json::to_value(schemars::schema_for!(GitTimeFilteredLogParams))
-                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
-                            .as_object()
-                            .cloned()
-                            .unwrap_or(serde_json::Map::new()),
-                    ),
-                    annotations: None,
-                    icons: None,
-                    meta: None,
-                    output_schema: None,
-                },
+
             ];
 
             Ok(ListToolsResult {
@@ -703,7 +706,14 @@ impl ServerHandler for GitToolsHandler {
                             ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
                         })?;
                     handler
-                        .git_log(params.repo_path, params.max_count, params.branch)
+                        .git_log(
+                            params.repo_path,
+                            params.max_count,
+                            params.branch,
+                            params.since,
+                            params.until,
+                            params.author,
+                        )
                         .await
                 }
                 "git_branches" => {
@@ -767,21 +777,6 @@ impl ServerHandler for GitToolsHandler {
                         .git_reset(params.repo_path, params.path, params.hard, params.target)
                         .await
                 }
-                "git_time_filtered_log" => {
-                    let params: GitTimeFilteredLogParams =
-                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
-                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
-                        })?;
-                    handler
-                        .git_time_filtered_log(
-                            params.repo_path,
-                            params.since,
-                            params.until,
-                            params.author,
-                            params.branch,
-                        )
-                        .await
-                }
                 _ => return Err(ErrorData::method_not_found::<CallToolRequestMethod>()),
             };
 
@@ -802,6 +797,9 @@ struct GitLogParams {
     repo_path: String,
     max_count: Option<u32>,
     branch: Option<String>,
+    since: Option<String>,
+    until: Option<String>,
+    author: Option<String>,
 }
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
@@ -853,13 +851,4 @@ struct GitResetParams {
     path: Option<String>,
     hard: Option<bool>,
     target: Option<String>,
-}
-
-#[derive(serde::Deserialize, schemars::JsonSchema)]
-struct GitTimeFilteredLogParams {
-    repo_path: String,
-    since: String,
-    until: Option<String>,
-    author: Option<String>,
-    branch: Option<String>,
 }

@@ -10,8 +10,7 @@ Git 工具库，用于 Model Context Protocol (MCP)。
 
 - `git_status` - 获取仓库状态
 - `git_branches` - 列出分支信息
-- `git_log` - 获取提交历史
-- `git_time_filtered_log` - 获取指定时间范围内的提交
+- `git_log` - 获取提交历史，支持灵活的过滤选项（按时间、作者、分支、数量）
 - `git_commit` - 创建新提交
 - `git_pull` - 从远程拉取更改
 - `git_push` - 推送更改到远程
@@ -147,12 +146,15 @@ struct GitStatusParams {
 
 ### git_log
 
-获取提交历史。
+获取提交历史，支持灵活的过滤选项。
 
 **参数：**
 - `repo_path` - Git 仓库路径
-- `max_count` - (可选) 最大提交数量
+- `max_count` - (可选) 最大返回提交数量
 - `branch` - (可选) 分支名称
+- `since` - (可选) 开始日期（例如："2023-01-01"、"1 week ago"、"yesterday"）
+- `until` - (可选) 结束日期（例如："2023-12-31"、"today"）
+- `author` - (可选) 按特定作者过滤（匹配姓名或邮箱）
 
 **返回：**
 ```json
@@ -168,29 +170,11 @@ struct GitStatusParams {
 }
 ```
 
-### git_time_filtered_log
-
-获取指定时间范围内的提交，可选择按作者和分支进行过滤。
-
-**参数：**
-- `repo_path` - Git 仓库路径
-- `since` - 开始日期（例如："2023-01-01"、"1 week ago"、"yesterday"）
-- `until` - (可选) 结束日期（例如："2023-01-31"、"today"）
-- `author` - (可选) 按特定作者过滤
-- `branch` - (可选) 分支名称
-
-**返回：**
-```json
-{
-  "commits": [...],
-  "filters": {
-    "since": "1 week ago",
-    "until": "today",
-    "author": "User Name",
-    "branch": "main"
-  }
-}
-```
+**使用示例：**
+- 获取最近 10 条提交：`{"repo_path": ".", "max_count": 10}`
+- 获取最近一周的提交：`{"repo_path": ".", "since": "1 week ago"}`
+- 按作者过滤：`{"repo_path": ".", "author": "张三"}`
+- 获取时间范围内的提交：`{"repo_path": ".", "since": "2023-01-01", "until": "2023-12-31"}`
 
 ### git_commit
 

@@ -10,8 +10,7 @@ This library provides a set of Git operations that can be called through the Mod
 
 - `git_status` - Get the status of a repository
 - `git_branches` - List branch information
-- `git_log` - Get commit history
-- `git_time_filtered_log` - Get commits within a specific time range
+- `git_log` - Get commit history with flexible filtering options (by time, author, branch, count)
 - `git_commit` - Create a new commit
 - `git_pull` - Pull changes from remote
 - `git_push` - Push changes to remote
@@ -147,12 +146,15 @@ List all branches.
 
 ### git_log
 
-Get commit history.
+Get commit history with flexible filtering options.
 
 **Parameters:**
-- `repo_path` - Path to the Git repository
+- `repo_path` - Path to Git repository
 - `max_count` - (optional) Maximum number of commits to return
 - `branch` - (optional) Branch name
+- `since` - (optional) Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
+- `until` - (optional) End date (e.g., "2023-01-31", "today")
+- `author` - (optional) Filter by specific author (matches name or email)
 
 **Returns:**
 ```json
@@ -168,29 +170,11 @@ Get commit history.
 }
 ```
 
-### git_time_filtered_log
-
-Get commits within a specified time range, optionally filtered by author and branch.
-
-**Parameters:**
-- `repo_path` - Path to the Git repository
-- `since` - Start date (e.g., "2023-01-01", "1 week ago", "yesterday")
-- `until` - (optional) End date (e.g., "2023-01-31", "today")
-- `author` - (optional) Filter by specific author
-- `branch` - (optional) Branch name
-
-**Returns:**
-```json
-{
-  "commits": [...],
-  "filters": {
-    "since": "1 week ago",
-    "until": "today",
-    "author": "User Name",
-    "branch": "main"
-  }
-}
-```
+**Examples:**
+- Get recent 10 commits: `{"repo_path": ".", "max_count": 10}`
+- Get commits from last week: `{"repo_path": ".", "since": "1 week ago"}`
+- Get commits by author: `{"repo_path": ".", "author": "John"}`
+- Get commits from a time range: `{"repo_path": ".", "since": "2023-01-01", "until": "2023-12-31"}`
 
 ### git_commit
 

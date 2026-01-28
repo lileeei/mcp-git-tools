@@ -992,13 +992,16 @@ version = "0.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c719cf7d669439e1fca735bd1c4de54d43c5d30e8883fd6063c4924b213d70c9"
 dependencies = [
+ "bitflags",
  "bstr",
  "gix-commitgraph",
  "gix-date",
  "gix-error",
  "gix-hash",
+ "gix-hashtable",
  "gix-object",
  "gix-revwalk",
+ "gix-trace",
 ]
 
 [[package]]
@@ -1399,6 +1402,7 @@ name = "mcp-git-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "gix",
  "rmcp",
  "serde",
