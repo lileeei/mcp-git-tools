@@ -459,6 +459,68 @@ impl GitToolsHandler {
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
+
+    /// Show detailed information about a specific commit
+    pub async fn git_show(
+        &self,
+        repo_path: String,
+        commit_id: String,
+    ) -> Result<CallToolResult> {
+        let repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
+
+        let commit = repo
+            .rev_parse(commit_id.as_str())
+            .map_err(|e| anyhow::anyhow!("Failed to parse commit id '{}': {}", commit_id, e))?
+            .single()
+            .ok_or_else(|| anyhow::anyhow!("Invalid commit id: {}", commit_id))?
+            .object()
+            .map_err(|e| anyhow::anyhow!("Failed to find commit: {}", e))?
+            .into_commit();
+
+        let decoded = commit
+            .decode()
+            .map_err(|e| anyhow::anyhow!("Failed to decode commit: {}", e))?;
+
+        let author_info = decoded
+            .author()
+            .map_err(|e| anyhow::anyhow!("Failed to parse author: {}", e))?;
+
+        let author_time = author_info
+            .time()
+            .map_err(|e| anyhow::anyhow!("Failed to get author time: {}", e))?;
+
+        let committer_info = decoded
+            .committer()
+            .map_err(|e| anyhow::anyhow!("Failed to parse committer: {}", e))?;
+
+        let committer_time = committer_info
+            .time()
+            .map_err(|e| anyhow::anyhow!("Failed to get committer time: {}", e))?;
+
+        let message = commit
+            .message()
+            .map_err(|e| anyhow::anyhow!("Failed to parse commit message: {}", e))?;
+
+        let author_date_str = format_git_date(&author_time);
+        let committer_date_str = format_git_date(&committer_time);
+
+        let result = json!({
+            "hash": commit.id().to_string(),
+            "author": author_info.name.to_str().unwrap_or("").to_string(),
+            "email": author_info.email.to_str().unwrap_or("").to_string(),
+            "date": author_date_str,
+            "committer": committer_info.name.to_str().unwrap_or("").to_string(),
+            "committer_email": committer_info.email.to_str().unwrap_or("").to_string(),
+            "committer_date": committer_date_str,
+            "message_title": message.title.to_string(),
+            "message_body": message.body.and_then(|b| b.to_str().ok()).unwrap_or("").to_string(),
+            "tree": commit.tree().ok().map(|t| t.id().to_string()),
+            "parents": commit.parent_ids().map(|id| id.to_string()).collect::<Vec<_>>()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
 }
 
 /// 格式化 git 日期为标准格式
@@ -668,6 +730,22 @@ impl ServerHandler for GitToolsHandler {
                     meta: None,
                     output_schema: None,
                 },
+                Tool {
+                    name: "git_show".into(),
+                    title: None,
+                    description: Some("Show detailed information about a specific commit by commit id".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitShowParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
 
             ];
 
@@ -777,6 +855,13 @@ impl ServerHandler for GitToolsHandler {
                         .git_reset(params.repo_path, params.path, params.hard, params.target)
                         .await
                 }
+                "git_show" => {
+                    let params: GitShowParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler.git_show(params.repo_path, params.commit_id).await
+                }
                 _ => return Err(ErrorData::method_not_found::<CallToolRequestMethod>()),
             };
 
@@ -851,4 +936,10 @@ struct GitResetParams {
     path: Option<String>,
     hard: Option<bool>,
     target: Option<String>,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitShowParams {
+    repo_path: String,
+    commit_id: String,
 }
