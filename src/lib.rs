@@ -379,26 +379,40 @@ impl GitToolsHandler {
         staged: Option<bool>,
         commit: Option<String>,
     ) -> Result<CallToolResult> {
-        let mut cmd_args: Vec<String> = vec!["diff".to_string()];
+        // Open repository for future gix diff implementation
+        let _repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
 
-        if staged.unwrap_or(false) {
-            cmd_args.push("--staged".to_string());
-        }
-
-        if let Some(ref commit_ref) = commit {
-            cmd_args.push(commit_ref.to_string());
-        }
-
-        if let Some(ref file_path) = path {
-            cmd_args.push("--".to_string());
-            cmd_args.push(file_path.to_string());
-        }
-
-        let cmd_args_refs: Vec<&str> = cmd_args.iter().map(|s| s.as_str()).collect();
-        let diff_output = run_git_command(&repo_path, &cmd_args_refs)?;
+        let diff_output = if staged.unwrap_or(false) {
+            // Compare index with HEAD tree (git diff --staged)
+            let mut cmd_args: Vec<String> = vec!["diff".to_string(), "--cached".to_string()];
+            if let Some(ref p) = path {
+                cmd_args.push("--".to_string());
+                cmd_args.push(p.to_string());
+            }
+            let cmd_args_refs: Vec<&str> = cmd_args.iter().map(|s| s.as_str()).collect();
+            run_git_command(&repo_path, &cmd_args_refs)?
+        } else if let Some(commit_ref) = commit {
+            // Compare commit with working tree (git diff <commit>)
+            let mut cmd_args = vec!["diff".to_string(), commit_ref];
+            if let Some(ref p) = path {
+                cmd_args.push("--".to_string());
+                cmd_args.push(p.to_string());
+            }
+            let cmd_args_refs: Vec<&str> = cmd_args.iter().map(|s| s.as_str()).collect();
+            run_git_command(&repo_path, &cmd_args_refs)?
+        } else {
+            // Compare working tree with index (git diff)
+            let mut cmd_args = vec!["diff".to_string()];
+            if let Some(ref p) = path {
+                cmd_args.push("--".to_string());
+                cmd_args.push(p.to_string());
+            }
+            let cmd_args_refs: Vec<&str> = cmd_args.iter().map(|s| s.as_str()).collect();
+            run_git_command(&repo_path, &cmd_args_refs)?
+        };
 
         let result = json!({ "changes": diff_output });
-
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
 
