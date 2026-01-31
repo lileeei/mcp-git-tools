@@ -241,20 +241,42 @@ impl GitToolsHandler {
 
     /// List all branches in a git repository
     pub async fn git_branches(&self, repo_path: String) -> Result<CallToolResult> {
-        let branch_output = run_git_command(&repo_path, &["branch", "--list"])?;
+        let repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
 
-        let branches: Vec<String> = branch_output
-            .lines()
-            .map(|line: &str| line.trim().to_string())
-            .collect();
+        let mut branches = Vec::new();
 
-        let current_branch = run_git_command(&repo_path, &["rev-parse", "--abbrev-ref", "HEAD"])?
-            .trim()
-            .to_string();
+        let head = repo.head().map_err(|e| anyhow::anyhow!("Failed to get HEAD: {}", e))?;
+        let current_branch_name: String = head
+            .referent_name()
+            .map(|name| name.shorten())
+            .map(|name: &gix::bstr::BStr| name.to_string())
+            .unwrap_or_else(|| "HEAD (detached)".to_string());
+
+        let references = repo.references()?;
+        let branches_iter = references
+            .local_branches()
+            .map_err(|e| anyhow::anyhow!("Failed to get local branches: {}", e))?;
+
+        for reference in branches_iter {
+            let reference: gix::Reference = reference.map_err(|e| anyhow::anyhow!("Failed to read reference: {}", e))?;
+            let name = reference.name();
+            let short_name = name.shorten();
+            let branch_name: String = short_name.to_string();
+
+            let prefix = if branch_name == current_branch_name {
+                "* "
+            } else {
+                "  "
+            };
+            branches.push(format!("{}{}", prefix, branch_name));
+        }
+
+        branches.sort();
 
         let result = json!({
             "branches": branches,
-            "current": current_branch
+            "current": current_branch_name
         });
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
