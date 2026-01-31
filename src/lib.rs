@@ -412,27 +412,27 @@ impl GitToolsHandler {
     ) -> Result<CallToolResult> {
         let path_value = path.unwrap_or_else(|| ".".to_string());
         let mut args: Vec<String> = vec!["add".to_string()];
-
+        
         if update.unwrap_or(false) {
             args.push("--update".to_string());
         } else if all.unwrap_or(false) {
             args.push("--all".to_string());
         }
-
+        
         args.push(path_value);
-
+        
         let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
         let add_output = run_git_command(&repo_path, &cmd_args_refs)?;
-
+        
         let status_output = run_git_command(&repo_path, &["status", "--porcelain"])?;
         let status_lines: Vec<&str> = status_output.lines().collect();
-
+        
         let result = json!({
             "success": true,
             "message": if add_output.is_empty() { "Files staged successfully".to_string() } else { add_output },
             "status": status_lines
         });
-
+        
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
 
