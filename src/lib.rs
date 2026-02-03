@@ -461,11 +461,7 @@ impl GitToolsHandler {
     }
 
     /// Show detailed information about a specific commit
-    pub async fn git_show(
-        &self,
-        repo_path: String,
-        commit_id: String,
-    ) -> Result<CallToolResult> {
+    pub async fn git_show(&self, repo_path: String, commit_id: String) -> Result<CallToolResult> {
         let repo = gix::open(&repo_path)
             .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
 
