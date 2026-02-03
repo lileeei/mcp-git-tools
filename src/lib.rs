@@ -943,3 +943,8 @@ struct GitShowParams {
     repo_path: String,
     commit_id: String,
 }
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreeListParams {
+    repo_path: String,
+}
