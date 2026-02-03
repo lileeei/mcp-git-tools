@@ -303,9 +303,10 @@ List all worktrees in a repository.
 {
   "worktrees": [
     {
-      "worktree": "/path/to/worktree",
-      "HEAD": "abcd1234",
-      "branch": "refs/heads/main"
+      "id": "worktree-name",
+      "path": "/path/to/worktree",
+      "locked": false,
+      "lock_reason": null
     }
   ]
 }
