@@ -1132,3 +1132,10 @@ struct GitWorktreeRemoveParams {
     path: String,
     force: Option<bool>,
 }
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreePruneParams {
+    repo_path: String,
+    verbose: Option<bool>,
+    dry_run: Option<bool>,
+}
