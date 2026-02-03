@@ -1073,3 +1073,10 @@ struct GitWorktreeAddParams {
     commit_ref: Option<String>,
     checkout: Option<bool>,
 }
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreeRemoveParams {
+    repo_path: String,
+    path: String,
+    force: Option<bool>,
+}
