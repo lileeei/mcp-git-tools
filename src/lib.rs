@@ -519,24 +519,29 @@ impl GitToolsHandler {
     }
 
     pub async fn git_worktree_list(&self, repo_path: String) -> Result<CallToolResult> {
-        let output = run_git_command(&repo_path, &["worktree", "list", "--porcelain"])?;
+        let repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
 
-        let worktrees: Vec<serde_json::Value> = output
-            .split("\n\n")
-            .filter(|s| !s.is_empty())
-            .map(|block| {
+        let worktrees = repo.worktrees()?;
+
+        let worktree_list: Vec<serde_json::Value> = worktrees
+            .iter()
+            .map(|proxy| {
                 let mut worktree = serde_json::Map::new();
-                for line in block.lines() {
-                    if let Some((key, value)) = line.split_once(' ') {
-                        worktree.insert(key.to_string(), json!(value));
-                    }
+                worktree.insert("id".to_string(), json!(proxy.id().to_string()));
+                if let Ok(base) = proxy.base() {
+                    worktree.insert("path".to_string(), json!(base.to_string_lossy().to_string()));
+                }
+                worktree.insert("locked".to_string(), json!(proxy.is_locked()));
+                if let Some(reason) = proxy.lock_reason() {
+                    worktree.insert("lock_reason".to_string(), json!(reason.to_string()));
                 }
                 json!(worktree)
             })
             .collect();
 
         let result = json!({
-            "worktrees": worktrees
+            "worktrees": worktree_list
         });
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
