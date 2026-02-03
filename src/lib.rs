@@ -610,6 +610,35 @@ impl GitToolsHandler {
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
+
+    pub async fn git_worktree_prune(
+        &self,
+        repo_path: String,
+        verbose: Option<bool>,
+        dry_run: Option<bool>,
+    ) -> Result<CallToolResult> {
+        let mut args: Vec<String> = vec!["worktree".to_string(), "prune".to_string()];
+
+        if verbose.unwrap_or(false) {
+            args.push("--verbose".to_string());
+        }
+
+        if dry_run.unwrap_or(false) {
+            args.push("--dry-run".to_string());
+        }
+
+        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = run_git_command(&repo_path, &cmd_args_refs)?;
+
+        let result = json!({
+            "success": true,
+            "verbose": verbose,
+            "dry_run": dry_run,
+            "output": output.trim()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
 }
 
 /// 格式化 git 日期为标准格式
