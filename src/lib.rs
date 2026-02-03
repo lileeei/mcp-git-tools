@@ -995,3 +995,12 @@ struct GitShowParams {
 struct GitWorktreeListParams {
     repo_path: String,
 }
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreeAddParams {
+    repo_path: String,
+    path: String,
+    branch: Option<String>,
+    commit_ref: Option<String>,
+    checkout: Option<bool>,
+}
