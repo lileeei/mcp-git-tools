@@ -368,6 +368,19 @@ async fn test_git_log_with_branch() {
 }
 
 #[tokio::test]
+async fn test_git_worktree_list() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let result = handler.git_worktree_list(repo_path).await;
+    assert!(result.is_ok());
+
+    let call_result = result.unwrap();
+    assert_eq!(call_result.content.len(), 1);
+}
+
+#[tokio::test]
 async fn test_git_log_with_time_range() {
     let temp_dir = tempdir().unwrap();
     let repo_path = create_test_repo(&temp_dir);

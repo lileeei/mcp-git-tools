@@ -521,6 +521,30 @@ impl GitToolsHandler {
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
+
+    pub async fn git_worktree_list(&self, repo_path: String) -> Result<CallToolResult> {
+        let output = run_git_command(&repo_path, &["worktree", "list", "--porcelain"])?;
+
+        let worktrees: Vec<serde_json::Value> = output
+            .split("\n\n")
+            .filter(|s| !s.is_empty())
+            .map(|block| {
+                let mut worktree = serde_json::Map::new();
+                for line in block.lines() {
+                    if let Some((key, value)) = line.split_once(' ') {
+                        worktree.insert(key.to_string(), json!(value));
+                    }
+                }
+                json!(worktree)
+            })
+            .collect();
+
+        let result = json!({
+            "worktrees": worktrees
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
 }
 
 /// 格式化 git 日期为标准格式
