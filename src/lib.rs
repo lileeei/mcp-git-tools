@@ -902,6 +902,13 @@ impl ServerHandler for GitToolsHandler {
                         })?;
                     handler.git_show(params.repo_path, params.commit_id).await
                 }
+                "git_worktree_list" => {
+                    let params: GitWorktreeListParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler.git_worktree_list(params.repo_path).await
+                }
                 _ => return Err(ErrorData::method_not_found::<CallToolRequestMethod>()),
             };
 
