@@ -912,6 +912,22 @@ impl ServerHandler for GitToolsHandler {
                     meta: None,
                     output_schema: None,
                 },
+                Tool {
+                    name: "git_worktree_prune".into(),
+                    title: None,
+                    description: Some("Prune working tree files in $GIT_DIR/worktrees".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitWorktreePruneParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
 
             ];
 
