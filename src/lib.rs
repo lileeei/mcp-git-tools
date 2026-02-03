@@ -824,6 +824,22 @@ impl ServerHandler for GitToolsHandler {
                     meta: None,
                     output_schema: None,
                 },
+                Tool {
+                    name: "git_worktree_add".into(),
+                    title: None,
+                    description: Some("Add a new worktree to a git repository".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitWorktreeAddParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
 
             ];
 
