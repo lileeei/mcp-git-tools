@@ -583,6 +583,33 @@ impl GitToolsHandler {
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
+
+    pub async fn git_worktree_remove(
+        &self,
+        repo_path: String,
+        path: String,
+        force: Option<bool>,
+    ) -> Result<CallToolResult> {
+        let mut args: Vec<String> = vec!["worktree".to_string(), "remove".to_string()];
+
+        if force.unwrap_or(false) {
+            args.push("--force".to_string());
+        }
+
+        args.push(path.clone());
+
+        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = run_git_command(&repo_path, &cmd_args_refs)?;
+
+        let result = json!({
+            "success": true,
+            "path": path,
+            "force": force,
+            "output": output.trim()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
 }
 
 /// 格式化 git 日期为标准格式
