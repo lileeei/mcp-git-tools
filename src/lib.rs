@@ -1021,6 +1021,15 @@ impl ServerHandler for GitToolsHandler {
                         )
                         .await
                 }
+                "git_worktree_remove" => {
+                    let params: GitWorktreeRemoveParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler
+                        .git_worktree_remove(params.repo_path, params.path, params.force)
+                        .await
+                }
                 _ => return Err(ErrorData::method_not_found::<CallToolRequestMethod>()),
             };
 
