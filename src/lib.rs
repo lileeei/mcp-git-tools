@@ -545,6 +545,44 @@ impl GitToolsHandler {
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
     }
+
+    pub async fn git_worktree_add(
+        &self,
+        repo_path: String,
+        path: String,
+        branch: Option<String>,
+        commit_ref: Option<String>,
+        checkout: Option<bool>,
+    ) -> Result<CallToolResult> {
+        let mut args: Vec<String> = vec!["worktree".to_string(), "add".to_string()];
+
+        if !checkout.unwrap_or(true) {
+            args.push("--no-checkout".to_string());
+        }
+
+        if let Some(branch_name) = &branch {
+            args.push("-b".to_string());
+            args.push(branch_name.clone());
+        }
+
+        args.push(path.clone());
+
+        if let Some(ref_commit) = &commit_ref {
+            args.push(ref_commit.clone());
+        }
+
+        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = run_git_command(&repo_path, &cmd_args_refs)?;
+
+        let result = json!({
+            "success": true,
+            "path": path,
+            "branch": branch,
+            "output": output.trim()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
 }
 
 /// 格式化 git 日期为标准格式
