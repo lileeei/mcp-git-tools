@@ -17,6 +17,10 @@ Git 工具库，用于 Model Context Protocol (MCP)。
 - `git_diff` - 查看文件差异
 - `git_add` - 将文件内容添加到暂存区
 - `git_reset` - 重置暂存区或工作区到指定状态
+- `git_worktree_list` - 列出所有工作树
+- `git_worktree_add` - 创建新的工作树
+- `git_worktree_remove` - 删除工作树
+- `git_worktree_prune` - 清理过期的工作树文件
 
 ## 安装
 
@@ -284,6 +288,85 @@ struct GitStatusParams {
   "success": true,
   "message": "Files unstaged successfully",
   "status": ["?? file1.txt", "?? file2.txt"]
+}
+```
+
+### git_worktree_list
+
+列出仓库中的所有工作树。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+
+**返回：**
+```json
+{
+  "worktrees": [
+    {
+      "worktree": "/path/to/worktree",
+      "HEAD": "abcd1234",
+      "branch": "refs/heads/main"
+    }
+  ]
+}
+```
+
+### git_worktree_add
+
+创建新的工作树。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+- `path` - 新工作树路径
+- `branch` - (可选) 要创建的分支名称
+- `commit_ref` - (可选) 要检出的提交引用
+- `checkout` - (可选) 是否检出文件，默认为 true
+
+**返回：**
+```json
+{
+  "success": true,
+  "path": "/path/to/new/worktree",
+  "branch": "feature-branch",
+  "output": "Preparing worktree (checking out 'feature-branch')"
+}
+```
+
+### git_worktree_remove
+
+删除工作树。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+- `path` - 要删除的工作树路径
+- `force` - (可选) 是否强制删除（即使工作树有未提交的更改）
+
+**返回：**
+```json
+{
+  "success": true,
+  "path": "/path/to/worktree",
+  "force": false,
+  "output": "Removing worktrees/feature-branch"
+}
+```
+
+### git_worktree_prune
+
+清理 $GIT_DIR/worktrees 中的工作树文件。
+
+**参数：**
+- `repo_path` - Git 仓库路径
+- `verbose` - (可选) 报告所有删除操作
+- `dry_run` - (可选) 仅显示不实际删除
+
+**返回：**
+```json
+{
+  "success": true,
+  "verbose": false,
+  "dry_run": false,
+  "output": "Pruning worktrees/feature-branch"
 }
 ```
 
