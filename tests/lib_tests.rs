@@ -368,6 +368,149 @@ async fn test_git_log_with_branch() {
 }
 
 #[tokio::test]
+async fn test_git_worktree_list() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let result = handler.git_worktree_list(repo_path).await;
+    assert!(result.is_ok());
+
+    let call_result = result.unwrap();
+    assert_eq!(call_result.content.len(), 1);
+}
+
+#[tokio::test]
+async fn test_git_worktree_add() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let worktree_path = temp_dir.path().join("test_repo_worktree");
+
+    let result = handler
+        .git_worktree_add(
+            repo_path.clone(),
+            worktree_path.to_str().unwrap().to_string(),
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    assert!(result.is_ok());
+
+    let call_result = result.unwrap();
+    assert_eq!(call_result.content.len(), 1);
+}
+
+#[tokio::test]
+async fn test_git_worktree_remove() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let worktree_path = temp_dir.path().join("test_repo_worktree");
+
+    handler
+        .git_worktree_add(
+            repo_path.clone(),
+            worktree_path.to_str().unwrap().to_string(),
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+    let result = handler
+        .git_worktree_remove(
+            repo_path.clone(),
+            worktree_path.to_str().unwrap().to_string(),
+            None,
+        )
+        .await;
+
+    assert!(result.is_ok());
+
+    let call_result = result.unwrap();
+    assert_eq!(call_result.content.len(), 1);
+}
+
+#[tokio::test]
+async fn test_git_worktree_prune() {
+    let temp_dir = tempdir().unwrap();
+    let repo_path = create_test_repo(&temp_dir);
+    let handler = GitToolsHandler::new();
+
+    let test_file = temp_dir.path().join("test_repo/test.txt");
+    std::fs::write(&test_file, "initial content").unwrap();
+
+    Command::new("git")
+        .args(["add", "test.txt"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    Command::new("git")
+        .args(["commit", "-m", "Initial commit"])
+        .current_dir(temp_dir.path().join("test_repo"))
+        .output()
+        .unwrap();
+
+    let worktree_path = temp_dir.path().join("test_repo_worktree");
+
+    handler
+        .git_worktree_add(
+            repo_path.clone(),
+            worktree_path.to_str().unwrap().to_string(),
+            None,
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+
+    std::fs::remove_dir_all(&worktree_path).unwrap();
+
+    let result = handler.git_worktree_prune(repo_path, None, None).await;
+    assert!(result.is_ok());
+
+    let call_result = result.unwrap();
+    assert_eq!(call_result.content.len(), 1);
+}
+
+#[tokio::test]
 async fn test_git_log_with_time_range() {
     let temp_dir = tempdir().unwrap();
     let repo_path = create_test_repo(&temp_dir);

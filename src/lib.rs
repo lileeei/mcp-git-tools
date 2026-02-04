@@ -25,9 +25,12 @@ pub fn run_git_command(repo_path: &str, args: &[&str]) -> Result<String> {
 
     // Check if it's a git repository
     let git_dir = path.join(".git");
-    if !git_dir.is_dir() {
+    if !git_dir.exists() {
         anyhow::bail!("Not a git repository: {}", repo_path);
     }
+    
+    // .git can be a directory (normal repo) or a file (worktree)
+    // Both are valid git repositories
 
     let output = Command::new("git")
         .args(args)
@@ -497,11 +500,7 @@ impl GitToolsHandler {
     }
 
     /// Show detailed information about a specific commit
-    pub async fn git_show(
-        &self,
-        repo_path: String,
-        commit_id: String,
-    ) -> Result<CallToolResult> {
+    pub async fn git_show(&self, repo_path: String, commit_id: String) -> Result<CallToolResult> {
         let repo = gix::open(&repo_path)
             .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
 
@@ -553,6 +552,129 @@ impl GitToolsHandler {
             "message_body": message.body.and_then(|b| b.to_str().ok()).unwrap_or("").to_string(),
             "tree": commit.tree().ok().map(|t| t.id().to_string()),
             "parents": commit.parent_ids().map(|id| id.to_string()).collect::<Vec<_>>()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
+
+    pub async fn git_worktree_list(&self, repo_path: String) -> Result<CallToolResult> {
+        let repo = gix::open(&repo_path)
+            .map_err(|e| anyhow::anyhow!("Failed to open repository: {}", e))?;
+
+        let worktrees = repo.worktrees()?;
+
+        let worktree_list: Vec<serde_json::Value> = worktrees
+            .iter()
+            .map(|proxy| {
+                let mut worktree = serde_json::Map::new();
+                worktree.insert("id".to_string(), json!(proxy.id().to_string()));
+                if let Ok(base) = proxy.base() {
+                    worktree.insert("path".to_string(), json!(base.to_string_lossy().to_string()));
+                }
+                worktree.insert("locked".to_string(), json!(proxy.is_locked()));
+                if let Some(reason) = proxy.lock_reason() {
+                    worktree.insert("lock_reason".to_string(), json!(reason.to_string()));
+                }
+                json!(worktree)
+            })
+            .collect();
+
+        let result = json!({
+            "worktrees": worktree_list
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
+
+    pub async fn git_worktree_add(
+        &self,
+        repo_path: String,
+        path: String,
+        branch: Option<String>,
+        commit_ref: Option<String>,
+        checkout: Option<bool>,
+    ) -> Result<CallToolResult> {
+        let mut args: Vec<String> = vec!["worktree".to_string(), "add".to_string()];
+
+        if !checkout.unwrap_or(true) {
+            args.push("--no-checkout".to_string());
+        }
+
+        if let Some(branch_name) = &branch {
+            args.push("-b".to_string());
+            args.push(branch_name.clone());
+        }
+
+        args.push(path.clone());
+
+        if let Some(ref_commit) = &commit_ref {
+            args.push(ref_commit.clone());
+        }
+
+        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = run_git_command(&repo_path, &cmd_args_refs)?;
+
+        let result = json!({
+            "success": true,
+            "path": path,
+            "branch": branch,
+            "output": output.trim()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
+
+    pub async fn git_worktree_remove(
+        &self,
+        repo_path: String,
+        path: String,
+        force: Option<bool>,
+    ) -> Result<CallToolResult> {
+        let mut args: Vec<String> = vec!["worktree".to_string(), "remove".to_string()];
+
+        if force.unwrap_or(false) {
+            args.push("--force".to_string());
+        }
+
+        args.push(path.clone());
+
+        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = run_git_command(&repo_path, &cmd_args_refs)?;
+
+        let result = json!({
+            "success": true,
+            "path": path,
+            "force": force,
+            "output": output.trim()
+        });
+
+        Ok(CallToolResult::success(vec![Content::json(result)?]))
+    }
+
+    pub async fn git_worktree_prune(
+        &self,
+        repo_path: String,
+        verbose: Option<bool>,
+        dry_run: Option<bool>,
+    ) -> Result<CallToolResult> {
+        let mut args: Vec<String> = vec!["worktree".to_string(), "prune".to_string()];
+
+        if verbose.unwrap_or(false) {
+            args.push("--verbose".to_string());
+        }
+
+        if dry_run.unwrap_or(false) {
+            args.push("--dry-run".to_string());
+        }
+
+        let cmd_args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        let output = run_git_command(&repo_path, &cmd_args_refs)?;
+
+        let result = json!({
+            "success": true,
+            "verbose": verbose,
+            "dry_run": dry_run,
+            "output": output.trim()
         });
 
         Ok(CallToolResult::success(vec![Content::json(result)?]))
@@ -782,6 +904,70 @@ impl ServerHandler for GitToolsHandler {
                     meta: None,
                     output_schema: None,
                 },
+                Tool {
+                    name: "git_worktree_list".into(),
+                    title: None,
+                    description: Some("List all worktrees in a git repository".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitWorktreeListParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
+                Tool {
+                    name: "git_worktree_add".into(),
+                    title: None,
+                    description: Some("Add a new worktree to a git repository".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitWorktreeAddParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
+                Tool {
+                    name: "git_worktree_remove".into(),
+                    title: None,
+                    description: Some("Remove a worktree from a git repository".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitWorktreeRemoveParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
+                Tool {
+                    name: "git_worktree_prune".into(),
+                    title: None,
+                    description: Some("Prune working tree files in $GIT_DIR/worktrees".into()),
+                    input_schema: Arc::new(
+                        serde_json::to_value(schemars::schema_for!(GitWorktreePruneParams))
+                            .map_err(|e| ErrorData::internal_error(format!("Failed to generate schema: {}", e), None))?
+                            .as_object()
+                            .cloned()
+                            .unwrap_or(serde_json::Map::new()),
+                    ),
+                    annotations: None,
+                    icons: None,
+                    meta: None,
+                    output_schema: None,
+                },
 
             ];
 
@@ -898,6 +1084,46 @@ impl ServerHandler for GitToolsHandler {
                         })?;
                     handler.git_show(params.repo_path, params.commit_id).await
                 }
+                "git_worktree_list" => {
+                    let params: GitWorktreeListParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler.git_worktree_list(params.repo_path).await
+                }
+                "git_worktree_add" => {
+                    let params: GitWorktreeAddParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler
+                        .git_worktree_add(
+                            params.repo_path,
+                            params.path,
+                            params.branch,
+                            params.commit_ref,
+                            params.checkout,
+                        )
+                        .await
+                }
+                "git_worktree_remove" => {
+                    let params: GitWorktreeRemoveParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler
+                        .git_worktree_remove(params.repo_path, params.path, params.force)
+                        .await
+                }
+                "git_worktree_prune" => {
+                    let params: GitWorktreePruneParams =
+                        serde_json::from_value(serde_json::Value::Object(args)).map_err(|e| {
+                            ErrorData::invalid_params(format!("Invalid parameters: {}", e), None)
+                        })?;
+                    handler
+                        .git_worktree_prune(params.repo_path, params.verbose, params.dry_run)
+                        .await
+                }
                 _ => return Err(ErrorData::method_not_found::<CallToolRequestMethod>()),
             };
 
@@ -978,4 +1204,32 @@ struct GitResetParams {
 struct GitShowParams {
     repo_path: String,
     commit_id: String,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreeListParams {
+    repo_path: String,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreeAddParams {
+    repo_path: String,
+    path: String,
+    branch: Option<String>,
+    commit_ref: Option<String>,
+    checkout: Option<bool>,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreeRemoveParams {
+    repo_path: String,
+    path: String,
+    force: Option<bool>,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct GitWorktreePruneParams {
+    repo_path: String,
+    verbose: Option<bool>,
+    dry_run: Option<bool>,
 }

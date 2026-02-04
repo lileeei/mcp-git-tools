@@ -17,6 +17,10 @@ This library provides a set of Git operations that can be called through the Mod
 - `git_diff` - View file differences
 - `git_add` - Add file contents to the staging area
 - `git_reset` - Reset the staging area or working tree to a specified state
+- `git_worktree_list` - List all worktrees
+- `git_worktree_add` - Create a new worktree
+- `git_worktree_remove` - Remove a worktree
+- `git_worktree_prune` - Prune expired worktree files
 
 ## Installation
 
@@ -284,6 +288,86 @@ Reset the staging area or working tree to a specified state.
   "success": true,
   "message": "Files unstaged successfully",
   "status": ["?? file1.txt", "?? file2.txt"]
+}
+```
+
+### git_worktree_list
+
+List all worktrees in a repository.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+
+**Returns:**
+```json
+{
+  "worktrees": [
+    {
+      "id": "worktree-name",
+      "path": "/path/to/worktree",
+      "locked": false,
+      "lock_reason": null
+    }
+  ]
+}
+```
+
+### git_worktree_add
+
+Create a new worktree.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+- `path` - Path for the new worktree
+- `branch` - (optional) Branch name to create
+- `commit_ref` - (optional) Commit reference to check out
+- `checkout` - (optional) Whether to check out files, defaults to true
+
+**Returns:**
+```json
+{
+  "success": true,
+  "path": "/path/to/new/worktree",
+  "branch": "feature-branch",
+  "output": "Preparing worktree (checking out 'feature-branch')"
+}
+```
+
+### git_worktree_remove
+
+Remove a worktree.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+- `path` - Path to the worktree to remove
+- `force` - (optional) Force removal even if worktree is dirty
+
+**Returns:**
+```json
+{
+  "success": true,
+  "path": "/path/to/worktree",
+  "force": false,
+  "output": "Removing worktrees/feature-branch"
+}
+```
+
+### git_worktree_prune
+
+Prune working tree files in $GIT_DIR/worktrees.
+
+**Parameters:**
+- `repo_path` - Path to the Git repository
+- `verbose` - (optional) Report all removals
+- `dry_run` - (optional) Do not remove, show only
+
+**Returns:**
+```json
+{
+  "success": true,
+  "verbose": false,
+  "dry_run": false,
+  "output": "Pruning worktrees/feature-branch"
 }
 ```
 
