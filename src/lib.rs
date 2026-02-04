@@ -25,9 +25,12 @@ pub fn run_git_command(repo_path: &str, args: &[&str]) -> Result<String> {
 
     // Check if it's a git repository
     let git_dir = path.join(".git");
-    if !git_dir.is_dir() {
+    if !git_dir.exists() {
         anyhow::bail!("Not a git repository: {}", repo_path);
     }
+    
+    // .git can be a directory (normal repo) or a file (worktree)
+    // Both are valid git repositories
 
     let output = Command::new("git")
         .args(args)
